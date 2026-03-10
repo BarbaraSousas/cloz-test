@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   ChevronLeft,
   Flame,
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const avatars = [
-  { id: 1, image: "/avatar.png" },
+  { id: 1, image: `${import.meta.env.BASE_URL}avatar.png` },
   { id: 2, image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=300&fit=crop" },
   { id: 3, image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=300&fit=crop" },
 ];
@@ -88,38 +88,107 @@ export default function VirtualTryOn() {
   const currentAvatar = avatars.find(a => a.id === selectedAvatar) || avatars[0];
   const selectedLookData = showLookDetail ? outfits.find(o => o.id === showLookDetail) : null;
 
+  // Ref para evitar reset imediato após expansão
+  const justExpanded = useRef(false);
+
   const handleScroll = useCallback((e) => {
     const scrollTop = e.target.scrollTop;
-    setIsScrolled(scrollTop > 10);
-  }, []);
 
-  const onTouchStart = useCallback((e) => {
-    touchStartY.current = e.touches[0].clientY;
-  }, []);
+    if (scrollTop > 10 && !isScrolled) {
+      // Scroll para baixo - expande OutfitGrid, diminui avatar
+      setIsScrolled(true);
+      justExpanded.current = true;
+      // Permite voltar ao normal após um tempo
+      setTimeout(() => {
+        justExpanded.current = false;
+      }, 300);
+    } else if (scrollTop === 0 && isScrolled && !justExpanded.current) {
+      // Scroll voltou ao topo - colapsa OutfitGrid, expande avatar
+      setIsScrolled(false);
+    }
+  }, [isScrolled]);
 
-  const onTouchEnd = useCallback((e) => {
+  // Detecta pull-to-refresh apenas quando no topo absoluto
+  const handleTouchStart = useCallback((e) => {
     if (!galleryRef.current) return;
+    // Só registra se estiver no topo
+    if (galleryRef.current.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+    } else {
+      touchStartY.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!galleryRef.current || touchStartY.current === null) return;
+
+    const scrollTop = galleryRef.current.scrollTop;
+    // Se começou a scrollar para baixo, cancela o gesto de expansão
+    if (scrollTop > 0) {
+      touchStartY.current = null;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (!galleryRef.current || touchStartY.current === null) return;
+
     const touchEndY = e.changedTouches[0].clientY;
     const deltaY = touchEndY - touchStartY.current;
     const scrollTop = galleryRef.current.scrollTop;
-    const { scrollHeight, clientHeight } = galleryRef.current;
-    const hasScroll = scrollHeight > clientHeight;
 
-    // Só expande se está no topo E a lista tem scroll (conteúdo suficiente)
-    // Ou se não tem scroll, precisa de um arrastar maior (150px)
-    if (scrollTop <= 0 && deltaY > 0) {
-      if (hasScroll && deltaY > 80) {
-        setIsAvatarExpanded(true);
-      } else if (!hasScroll && deltaY > 150) {
+    // No topo e arrastou para baixo
+    if (scrollTop === 0 && deltaY > 100) {
+      if (isScrolled) {
+        // Se OutfitGrid está expandido, colapsa primeiro
+        setIsScrolled(false);
+      } else {
+        // Se já está colapsado, expande o avatar
         setIsAvatarExpanded(true);
       }
     }
-  }, []);
+
+    touchStartY.current = null;
+  }, [isScrolled]);
 
   const filteredOutfits =
     activeFilter === "Todos"
       ? outfits
       : outfits.filter((outfit) => outfit.style === activeFilter);
+
+  // Reset scroll position quando filtro muda (mas mantém isScrolled)
+  useEffect(() => {
+    if (galleryRef.current) {
+      galleryRef.current.scrollTop = 0;
+    }
+  }, [activeFilter]);
+
+  // Ref para rastrear estado anterior de isScrolled
+  const wasScrolled = useRef(false);
+
+  // Quando avatar diminui (isScrolled muda de false para true), reseta o scroll
+  useEffect(() => {
+    if (isScrolled && !wasScrolled.current && galleryRef.current) {
+      // Avatar acabou de diminuir - reseta scroll para o topo
+      setTimeout(() => {
+        if (galleryRef.current) {
+          galleryRef.current.scrollTop = 0;
+        }
+      }, 150);
+    }
+    wasScrolled.current = isScrolled;
+  }, [isScrolled]);
+
+  // Reset scroll quando avatar colapsa (volta a mostrar os looks)
+  useEffect(() => {
+    if (!isAvatarExpanded && galleryRef.current) {
+      setTimeout(() => {
+        if (galleryRef.current) {
+          galleryRef.current.scrollTop = 0;
+          setIsScrolled(false);
+        }
+      }, 150);
+    }
+  }, [isAvatarExpanded]);
 
   const toggleFavorite = (e, outfitId) => {
     e.stopPropagation();
@@ -244,8 +313,11 @@ export default function VirtualTryOn() {
     </div>
   );
 
-  const OutfitGrid = ({ columns = 3, className = "" }) => (
-    <div className={`grid gap-2 lg:gap-3 ${columns === 4 ? 'grid-cols-4' : 'grid-cols-3'} ${className}`}>
+  const OutfitGrid = ({ columns = 3, className = "", minHeight = false }) => (
+    <div
+      className={`grid gap-2 lg:gap-3 ${columns === 4 ? 'grid-cols-4' : 'grid-cols-3'} ${className}`}
+      style={minHeight ? { paddingBottom: '100vh' } : undefined}
+    >
       {filteredOutfits.map((outfit) => (
         <div
           key={outfit.id}
@@ -501,13 +573,16 @@ export default function VirtualTryOn() {
               </div>
 
               <div
+                key={activeFilter}
                 ref={galleryRef}
                 onScroll={handleScroll}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
-                className="flex-1 px-4 py-2 overflow-y-auto min-h-0 hide-scrollbar overscroll-none"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className="flex-1 px-4 py-2 overflow-y-auto min-h-0 hide-scrollbar"
+                style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
               >
-                <OutfitGrid columns={3} />
+                <OutfitGrid columns={3} minHeight />
               </div>
 
               <TryOnCounter />
