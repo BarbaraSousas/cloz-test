@@ -408,18 +408,18 @@ export default function VirtualTryOn() {
   const LookDetailModal = () => (
     selectedLookData && (
       <div
-        className="absolute inset-0 z-50 flex flex-col bg-white"
+        className="absolute inset-0 z-50 flex flex-col bg-white lg:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 lg:border-none">
           <button
             onClick={() => setShowLookDetail(null)}
             className="p-1 hover:bg-gray-100 rounded-full transition-all"
           >
             <ChevronLeft size={24} className="text-[#1A1A1A]" />
           </button>
-          <h2 className="text-lg font-semibold text-[#1A1A1A]">Detalhes do Look</h2>
+          <h2 className="text-lg font-semibold text-[#1A1A1A] lg:hidden">Detalhes do Look</h2>
           <button
             onClick={() => toggleFavorite({ stopPropagation: () => {} }, selectedLookData.id)}
             className="p-1 hover:bg-gray-100 rounded-full transition-all"
@@ -431,14 +431,14 @@ export default function VirtualTryOn() {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Content - Vertical on mobile, Horizontal on desktop */}
+        <div className="flex-1 overflow-y-auto lg:overflow-hidden lg:flex lg:gap-6">
           {/* Image */}
-          <div className="relative w-full" style={{ aspectRatio: '3/4' }}>
+          <div className="relative w-full lg:w-1/2 lg:h-full flex-shrink-0" style={{ aspectRatio: '3/4' }}>
             <img
               src={selectedLookData.image}
               alt={selectedLookData.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover lg:rounded-2xl"
             />
             <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-white/95 rounded-full shadow-sm">
               <span className="text-sm font-medium text-green-600 flex items-center gap-1">
@@ -449,14 +449,14 @@ export default function VirtualTryOn() {
           </div>
 
           {/* Info */}
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 lg:flex-1 lg:overflow-y-auto lg:p-0">
             <div>
-              <h3 className="text-xl font-semibold text-[#1A1A1A]">{selectedLookData.name}</h3>
+              <h3 className="text-xl lg:text-2xl font-semibold text-[#1A1A1A]">{selectedLookData.name}</h3>
               <p className="text-sm text-gray-500 mt-1">{selectedLookData.style}</p>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-[#1A1A1A]">{selectedLookData.price}</span>
+              <span className="text-2xl lg:text-3xl font-bold text-[#1A1A1A]">{selectedLookData.price}</span>
               <span className="px-3 py-1 bg-green-50 text-green-700 text-sm font-medium rounded-full">
                 Disponível
               </span>
@@ -515,11 +515,23 @@ export default function VirtualTryOn() {
                 <p className="text-sm font-medium text-[#1A1A1A]">{selectedLookData.brand}</p>
               </div>
             </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden lg:flex gap-3 pt-4">
+              <button className="flex-1 py-3 bg-[#1A1A1A] text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-[#333] transition-all">
+                <Sparkles size={18} />
+                Experimentar
+              </button>
+              <button className="py-3 px-6 bg-gray-100 text-[#1A1A1A] font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-all">
+                <ShoppingBag size={18} />
+                Comprar
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Bottom Actions */}
-        <div className="p-4 border-t border-gray-100 flex gap-3">
+        {/* Mobile Bottom Actions */}
+        <div className="p-4 border-t border-gray-100 flex gap-3 lg:hidden">
           <button className="flex-1 py-3 bg-[#1A1A1A] text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-[#333] transition-all">
             <Sparkles size={18} />
             Experimentar
